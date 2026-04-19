@@ -1,0 +1,120 @@
+groups:
+  - name: node.alerts
+    interval: 30s
+    rules:
+      - alert: NodeDown
+        expr: up{job="node"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node exporter down ({{ $labels.instance }})"
+          description: "Node exporter on {{ $labels.instance }} has been down for more than 2 minutes."
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage ({{ $labels.instance }})"
+          description: "CPU usage on {{ $labels.instance }} is {{ $value | printf \"%.1f\" }}% (threshold: 85%)."
+
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage ({{ $labels.instance }})"
+          description: "Memory usage on {{ $labels.instance }} is {{ $value | printf \"%.1f\" }}% (threshold: 85%)."
+
+      - alert: DiskSpaceLow
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|aufs"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|aufs"})) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space ({{ $labels.instance }}:{{ $labels.mountpoint }})"
+          description: "Disk {{ $labels.mountpoint }} on {{ $labels.instance }} is {{ $value | printf \"%.1f\" }}% full."
+
+      - alert: DiskSpaceCritical
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|aufs"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|aufs"})) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space critical ({{ $labels.instance }}:{{ $labels.mountpoint }})"
+          description: "Disk {{ $labels.mountpoint }} on {{ $labels.instance }} is {{ $value | printf \"%.1f\" }}% full."
+
+      - alert: HighNetworkErrors
+        expr: rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High network errors ({{ $labels.instance }})"
+          description: "Network errors on {{ $labels.instance }} exceed 10/s."
+
+  - name: blackbox.alerts
+    rules:
+      - alert: EndpointDown
+        expr: probe_success == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Endpoint down ({{ $labels.instance }})"
+          description: "Endpoint {{ $labels.instance }} has been down for more than 2 minutes."
+
+      - alert: SlowResponseTime
+        expr: probe_duration_seconds > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow response time ({{ $labels.instance }})"
+          description: "Endpoint {{ $labels.instance }} response time is {{ $value | printf \"%.2f\" }}s."
+
+      - alert: SSLCertExpiringSoon
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 14
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSL certificate expiring soon ({{ $labels.instance }})"
+          description: "SSL certificate for {{ $labels.instance }} expires in {{ $value | printf \"%.0f\" }} days."
+
+  - name: prometheus.alerts
+    rules:
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus is down"
+          description: "Prometheus has been down for more than 1 minute."
+
+      - alert: AlertmanagerDown
+        expr: up{job="alertmanager"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Alertmanager is down"
+          description: "Alertmanager has been down for more than 2 minutes."
+
+      - alert: PrometheusHighTSDBChurnRate
+        expr: rate(prometheus_tsdb_head_series_created_total[5m]) > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High TSDB churn rate"
+          description: "Prometheus TSDB series creation rate is {{ $value | printf \"%.1f\" }}/s."

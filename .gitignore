@@ -1,0 +1,9 @@
+.env
+grafana/data/
+prometheus/data/
+alertmanager/data/
+*.log
+.DS_Store
+__pycache__/
+.pytest_cache/
+*.pyc
